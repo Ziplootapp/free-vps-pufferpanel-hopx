@@ -6,7 +6,7 @@ Clear-Host
 Write-Host "==============================================" -ForegroundColor Cyan
 Write-Host "   ZIPLOOT HOPX.AI 1-CLICK API AUTOMATOR" -ForegroundColor Cyan
 Write-Host "==============================================" -ForegroundColor Cyan
-Write-Host "   PufferPanel & Docker | 256MB RAM + 1GB Swap | $0" -ForegroundColor Green
+Write-Host "   PufferPanel & Docker | 4 vCPU, 8GB RAM, 30GB Disk | $2 Free" -ForegroundColor Green
 Write-Host "==============================================" -ForegroundColor Cyan
 Write-Host
 
@@ -20,7 +20,7 @@ if ([string]::IsNullOrWhiteSpace($ApiToken)) {
     Write-Host "[SUCCESS] Command copied to clipboard!" -ForegroundColor Green
     Write-Host "Paste this command inside your Hopx VPS terminal: $Command" -ForegroundColor Cyan
 } else {
-    Write-Host "[INFO] API Token detected! Provisioning Hopx Sandbox..." -ForegroundColor Blue
+    Write-Host "[INFO] API Token detected! Provisioning 4 vCPU / 8GB RAM Hopx Sandbox..." -ForegroundColor Blue
     
     $Headers = @{
         "X-API-Key"     = "$ApiToken"
@@ -44,7 +44,7 @@ if ([string]::IsNullOrWhiteSpace($ApiToken)) {
             Write-Host "[SUCCESS] HOPX SANDBOX CREATED SUCCESSFULLY VIA API!" -ForegroundColor Green
             Write-Host "==============================================" -ForegroundColor Cyan
             Write-Host "Sandbox ID: $($Response.id)" -ForegroundColor Yellow
-            Write-Host "Executing setup.sh (256MB RAM + 1GB Swap + PufferPanel + Cloudflare)..." -ForegroundColor Green
+            Write-Host "Executing setup.sh (4 vCPU, 8GB RAM, PufferPanel + Cloudflare)..." -ForegroundColor Green
             $Success = $true
             break
         } catch {
