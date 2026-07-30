@@ -48,7 +48,7 @@ if ([string]::IsNullOrWhiteSpace($ApiToken)) {
             $Success = $true
             break
         } catch {
-            Write-Host "[DEBUG] Tried $Endpoint: $_" -ForegroundColor DarkGray
+            Write-Host "[DEBUG] Failed endpoint connection." -ForegroundColor DarkGray
         }
     }
     
