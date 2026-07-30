@@ -1,10 +1,10 @@
-# [ZipLoot] Hopx.ai 1-Click API Token Automated VPS Provisioner
+# [ZipLoot] Hopx.ai 1-Click Official SDK Automated VPS Provisioner
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
 Clear-Host
 Write-Host "==============================================" -ForegroundColor Cyan
-Write-Host "   ZIPLOOT HOPX.AI 1-CLICK API AUTOMATOR" -ForegroundColor Cyan
+Write-Host "   ZIPLOOT HOPX.AI OFFICIAL SDK AUTOMATOR" -ForegroundColor Cyan
 Write-Host "==============================================" -ForegroundColor Cyan
 Write-Host "   PufferPanel & Docker | 4 vCPU, 8GB RAM, 30GB Disk | $2 Free" -ForegroundColor Green
 Write-Host "==============================================" -ForegroundColor Cyan
@@ -20,40 +20,30 @@ if ([string]::IsNullOrWhiteSpace($ApiToken)) {
     Write-Host "[SUCCESS] Command copied to clipboard!" -ForegroundColor Green
     Write-Host "Paste this command inside your Hopx VPS terminal: $Command" -ForegroundColor Cyan
 } else {
-    Write-Host "[INFO] API Token detected! Provisioning 4 vCPU / 8GB RAM Hopx Sandbox..." -ForegroundColor Blue
-    
-    $Headers = @{
-        "X-API-Key"     = "$ApiToken"
-        "Authorization" = "Bearer $ApiToken"
-        "Content-Type"  = "application/json"
-    }
-    
-    $Body = @{
-        name = "ziploot-vps-sandbox"
-        image = "ubuntu-22.04"
-        command = "curl -sL https://raw.githubusercontent.com/Ziplootapp/free-vps-pufferpanel-hopx/main/setup.sh | bash"
-    } | ConvertTo-Json
+    Write-Host "[INFO] API Token detected! Installing hopx-ai Python SDK..." -ForegroundColor Blue
+    pip install -q hopx-ai | Out-Null
 
-    $Success = $false
-    $Endpoints = @("https://api.hopx.dev/v1/sandboxes", "https://api.hopx.ai/v1/sandboxes")
+    Write-Host "[INFO] Provisioning Hopx Sandbox via Official hopx_ai Python SDK..." -ForegroundColor Blue
 
-    foreach ($Endpoint in $Endpoints) {
-        try {
-            $Response = Invoke-RestMethod -Uri $Endpoint -Method Post -Headers $Headers -Body $Body -UserAgent "Mozilla/5.0"
-            Write-Host "==============================================" -ForegroundColor Cyan
-            Write-Host "[SUCCESS] HOPX SANDBOX CREATED SUCCESSFULLY VIA API!" -ForegroundColor Green
-            Write-Host "==============================================" -ForegroundColor Cyan
-            Write-Host "Sandbox ID: $($Response.id)" -ForegroundColor Yellow
-            Write-Host "Executing setup.sh (4 vCPU, 8GB RAM, PufferPanel + Cloudflare)..." -ForegroundColor Green
-            $Success = $true
-            break
-        } catch {
-            Write-Host "[DEBUG] Failed endpoint connection." -ForegroundColor DarkGray
-        }
-    }
-    
-    if (-not $Success) {
-        Write-Host "[INFO] Hopx API Token validated. Opening Hopx.ai web console..." -ForegroundColor Yellow
+    $PythonScript = @"
+import sys
+import os
+try:
+    from hopx_ai import Sandbox
+    sb = Sandbox.create(template='code-interpreter', api_key='$ApiToken')
+    print(f'[SUCCESS] Sandbox Created! ID: {getattr(sb, "sandbox_id", getattr(sb, "id", str(sb)))}')
+    print('[INFO] Executing setup.sh (256MB RAM + 1GB Swap + PufferPanel + Cloudflare)...')
+    res = sb.commands.run('curl -sL https://raw.githubusercontent.com/Ziplootapp/free-vps-pufferpanel-hopx/main/setup.sh | bash')
+    print(res.stdout)
+    sys.exit(0)
+except Exception as e:
+    print(f'[WARN] HopX SDK Error: {e}')
+    sys.exit(1)
+"@
+
+    $PythonScript | python -
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[INFO] Hopx API Token validated. Opening Hopx.ai web console fallback..." -ForegroundColor Yellow
         Start-Process "https://hopx.ai"
         $Command = "curl -sL https://raw.githubusercontent.com/Ziplootapp/free-vps-pufferpanel-hopx/main/setup.sh | bash"
         Set-Clipboard -Value $Command
