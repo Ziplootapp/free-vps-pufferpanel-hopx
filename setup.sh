@@ -1,76 +1,77 @@
 #!/usr/bin/env bash
+# ======================================================
+# ZIPLOOT - HOPX.AI 256MB RAM ULTRA-LIGHTWEIGHT AUTOMATION
+# ======================================================
 set -uo pipefail
 
 echo "=============================================="
-echo "⚡ ZIPLOOT - Hopx.ai Fully Automatic VPS Setup ⚡"
+echo "⚡ ZIPLOOT - Hopx.ai 256MB RAM Ultra-Lite Setup ⚡"
 echo "=============================================="
 
+# Fix dpkg & swap setup for 256MB RAM environment
 dpkg --configure -a || true
 apt-get update -y
 
-echo "Installing dependencies..."
-apt-get install -y curl sudo gnupg ca-certificates lsb-release software-properties-common apt-transport-https
+# Enable 1GB Swap file to prevent 256MB RAM Out-Of-Memory (OOM) crashes
+if [ ! -f /swapfile ]; then
+  echo "[INFO] Creating 1GB Swap memory for 256MB RAM stability..."
+  fallocate -l 1G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=1024
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo "/swapfile swap swap defaults 0 0" >> /etc/fstab
+fi
 
-echo "Installing Docker..."
-curl -fsSL https://get.docker.com | sh
-systemctl enable docker || true
-systemctl start docker || true
+# Install minimal native dependencies
+echo "[INFO] Installing minimal system dependencies..."
+apt-get install -y curl sudo ca-certificates jq
 
-echo "Installing Node.js..."
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt-get install -y nodejs
+# Install Cloudflare Tunnel (cloudflared native binary - 15MB RAM)
+if ! command -v cloudflared &> /dev/null; then
+  echo "[INFO] Installing Cloudflare Tunnel..."
+  curl -L -o cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+  dpkg -i cloudflared.deb
+  rm cloudflared.deb
+fi
 
-npm install -g pm2
-
-echo "Installing Cloudflare Tunnel..."
-curl -L -o cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-dpkg -i cloudflared.deb
-rm cloudflared.deb
-
-echo "Installing PufferPanel..."
-curl -s https://packagecloud.io/install/repositories/pufferpanel/pufferpanel/script.deb.sh | bash
-apt-get install -y pufferpanel
+# Install PufferPanel (Native binary - 35MB RAM)
+if ! command -v pufferpanel &> /dev/null; then
+  echo "[INFO] Installing Native PufferPanel..."
+  curl -s https://packagecloud.io/install/repositories/pufferpanel/pufferpanel/script.deb.sh | bash
+  apt-get install -y pufferpanel
+fi
 
 systemctl enable pufferpanel || true
 systemctl start pufferpanel || true
 
-echo "Configuring PufferPanel User..."
+# Add PufferPanel Admin Account
+echo "[INFO] Configuring PufferPanel Admin Account..."
 pufferpanel user add --admin --email admin@ziploot.app --name admin --password adminpassword123 || true
 
-cat << 'EOF' > get_url.js
-const fs = require('fs');
-const path = require('path');
+# Kill any existing tunnel
+pkill cloudflared || true
 
-const logPath = path.join(process.env.HOME || '/root', '.pm2/logs/cf-tunnel-err.log');
-let attempts = 0;
+# Launch Cloudflare Tunnel in background and capture URL
+echo "[INFO] Starting Cloudflare Tunnel..."
+nohup cloudflared tunnel --url http://localhost:8080 > /tmp/cf-tunnel.log 2>&1 &
 
-console.log("Waiting for Cloudflare Tunnel to generate public URL...");
+sleep 4
 
-const interval = setInterval(() => {
-  attempts++;
-  if (attempts > 40) {
-    console.log("Timeout: Could not extract Cloudflare Tunnel URL automatically.");
-    clearInterval(interval);
-    process.exit(0);
-  }
-  
-  if (fs.existsSync(logPath)) {
-    const logs = fs.readFileSync(logPath, 'utf8');
-    const match = logs.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/i);
-    if (match) {
-      console.log("\n========================================================");
-      console.log("🚀 YOUR LIVE FREE VPS PANEL IS READY!");
-      console.log(`🔗 URL: ${match[0]}`);
-      console.log("👤 Username: admin");
-      console.log("🔑 Password: adminpassword123");
-      console.log("========================================================\n");
-      clearInterval(interval);
-      process.exit(0);
-    }
-  }
-}, 1000);
-EOF
+# Extract live .trycloudflare.com URL
+for i in {1..30}; do
+  if grep -q "trycloudflare.com" /tmp/cf-tunnel.log; then
+    CF_URL=$(grep -o 'https://[a-zA-Z0-9-]*\.trycloudflare\.com' /tmp/cf-tunnel.log | head -n 1)
+    echo ""
+    echo "========================================================"
+    echo " 🚀 YOUR FREE HOPX VPS PANEL IS LIVE (256MB RAM TUNED)!"
+    echo "========================================================"
+    echo " 🔗 URL: $CF_URL"
+    echo " 👤 Username: admin"
+    echo " 🔑 Password: adminpassword123"
+    echo "========================================================"
+    exit 0
+  fi
+  sleep 1
+done
 
-pm2 start "cloudflared tunnel --url http://localhost:8080" --name "cf-tunnel"
-node get_url.js
-rm get_url.js
+echo "[WARN] Tunnel started! Check URL using: cat /tmp/cf-tunnel.log"
